@@ -167,6 +167,12 @@ function Settings() {
                             </span>
                         )}
                     </div>
+                    {/* Diagnostic for Gemini Validity */}
+                    {geminiStatus === 'invalid' && errorMessage && errorMessage.includes('GEMINI') && (
+                        <div style={{ color: '#ff8888', fontSize: '0.8rem', marginBottom: '8px' }}>
+                            {errorMessage.replace('GEMINI Error: ', '')}
+                        </div>
+                    )}
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-neutral-400)', marginBottom: 'var(--space-4)' }}>
                         Best for image analysis. Get key from{' '}
                         <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
