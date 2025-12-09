@@ -1,0 +1,306 @@
+.camera-lens {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--color-neutral-950);
+}
+
+/* ========== CAMERA CONTAINER ========== */
+
+.camera-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.camera-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--color-neutral-300);
+}
+
+/* ========== SCANNING OVERLAY ========== */
+
+.scanning-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.scan-circle {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    transition: all var(--transition-base);
+}
+
+.scan-circle.capturing {
+    transform: scale(0.95);
+    border-color: var(--color-primary-400);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+}
+
+.scan-circle.analyzing {
+    border-color: var(--color-accent-400);
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+}
+
+.scan-ring {
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.scan-ring-inner {
+    position: absolute;
+    inset: 10px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite 0.5s;
+}
+
+@keyframes pulse-ring {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+    }
+}
+
+/* ========== CAMERA CONTROLS ========== */
+
+.camera-controls-top {
+    position: absolute;
+    top: var(--space-6);
+    right: var(--space-4);
+    z-index: var(--z-dropdown);
+}
+
+.camera-controls-bottom {
+    position: absolute;
+    bottom: calc(var(--nav-height) + var(--space-6));
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    padding: 0 var(--space-6);
+    z-index: var(--z-dropdown);
+}
+
+.capture-button {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: white;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.capture-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.4);
+}
+
+.capture-button:active {
+    transform: scale(0.95);
+}
+
+.capture-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.capture-button svg {
+    color: var(--color-neutral-900);
+}
+
+/* ========== RECOMMENDATIONS PANEL ========== */
+
+.recommendations-panel {
+    position: absolute;
+    bottom: calc(var(--nav-height) + var(--space-4));
+    left: var(--space-4);
+    right: var(--space-4);
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--space-6);
+    z-index: var(--z-modal);
+}
+
+.recommendations-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.recommendations-header h3 {
+    font-size: var(--text-xl);
+    color: var(--color-neutral-50);
+}
+
+.dominant-color {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--glass-light);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
+}
+
+.color-swatch-large {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
+}
+
+.color-label {
+    font-size: var(--text-xs);
+    color: var(--color-neutral-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-1);
+}
+
+.color-name {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-neutral-50);
+    margin-bottom: var(--space-1);
+}
+
+.color-hex {
+    font-size: var(--text-sm);
+    color: var(--color-neutral-300);
+    font-family: 'Courier New', monospace;
+}
+
+.color-harmonies {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.harmony-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.harmony-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-neutral-300);
+}
+
+.color-swatches {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.color-swatch {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+}
+
+.color-swatch:active {
+    transform: scale(1.05);
+}
+
+/* ========== ANALYZING OVERLAY ========== */
+
+.analyzing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    z-index: var(--z-overlay);
+}
+
+.analyzing-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--glass-border);
+    border-top-color: var(--color-primary-400);
+    border-radius: 50%;
+}
+
+.analyzing-overlay p {
+    font-size: var(--text-lg);
+    color: var(--color-neutral-200);
+    font-weight: var(--font-medium);
+}
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 640px) {
+    .scan-circle {
+        width: 240px;
+        height: 240px;
+    }
+
+    .camera-controls-bottom {
+        gap: var(--space-6);
+    }
+
+    .capture-button {
+        width: 64px;
+        height: 64px;
+    }
+}

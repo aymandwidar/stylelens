@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Model Debugger</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #111;
+            color: #fff;
+        }
+
+        .card {
+            background: #222;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #333;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        pre {
+            background: #000;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .result-item {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Gemini Model Debugger</h1>
+
+    <div class="card">
+        <h3>Step 1: Enter API Key</h3>
+        <p>Your key stays in your browser. It is not sent anywhere else.</p>
+        <input type="password" id="apiKey" placeholder="Paste your AI Studio API Key here (starts with AIza...)">
+        <button onclick="runDiagnostics()">Run Diagnostics 🚀</button>
+    </div>
+
+    <div class="card" id="results" style="display:none">
+        <h3>Results</h3>
+        <div id="log"></div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+      }
+    </script>
+
+    <script type="module">
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+
+        window.runDiagnostics = async () => {
+            const key = document.getElementById('apiKey').value.trim();
+            const logDiv = document.getElementById('log');
+            const resultsDiv = document.getElementById('results');
+
+            if (!key) {
+                alert("Please enter an API key");
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            logDiv.innerHTML = "Initializing...<br>";
+
+            const log = (msg, type = 'neutral') => {
+                const colors = { neutral: '#ccc', success: '#4ade80', error: '#f87171', warning: '#fbbf24' };
+                logDiv.innerHTML += `<div class="result-item" style="color: ${colors[type]}">${msg}</div>`;
+            };
+
+            const candidates = [
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-pro',
+                'gemini-1.5-pro-latest',
+                'gemini-1.0-pro',
+                'gemini-pro',
+                'gemini-2.0-flash-exp',
+                'gemini-1.5-flash-8b'
+            ];
+
+            try {
+                const genAI = new GoogleGenerativeAI(key);
+
+                log(`Testing ${candidates.length} models...`, 'warning');
+
+                let foundAny = false;
+
+                for (const modelName of candidates) {
+                    try {
+                        log(`Testing <b>${modelName}</b>...`);
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        const result = await model.generateContent("Hello");
+                        const response = await result.response;
+                        const text = response.text();
+
+                        log(`✅ ${modelName} WORKS! Response: "${text.substring(0, 20)}..."`, 'success');
+                        foundAny = true;
+                    } catch (e) {
+                        let err = e.toString();
+                        if (err.includes('404')) err = "404 Not Found (Model not available for key/region)";
+                        if (err.includes('403')) err = "403 Forbidden (API not enabled or quota exceeded)";
+                        log(`❌ ${modelName} failed: ${err}`, 'error');
+                    }
+                }
+
+                if (foundAny) {
+                    log("<br>🎉 SUCCESS! At least one model works.", 'success');
+                    log("You can try using one of the working model names in the app code if needed.", 'neutral');
+                } else {
+                    log("<br>⚠️ ALL MODELS FAILED.", 'error');
+                    log("This usually means:", 'neutral');
+                    log("1. The API Key is invalid.", 'neutral');
+                    log("2. The 'Generative AI API' is not enabled in your Google Cloud Console.", 'neutral');
+                    log("3. Your Google Cloud billing account has issues.", 'neutral');
+                    log("4. You are in a restricted region (e.g. Europe) requiring specific setup.", 'neutral');
+                }
+
+            } catch (err) {
+                log(`Critical Initialization Error: ${err.message}`, 'error');
+            }
+        };
+    </script>
+</body>
+
+</html>

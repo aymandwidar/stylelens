@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gemini API Test</title>
+</head>
+
+<body>
+    <h1>Gemini API Test</h1>
+    <input type="text" id="apiKey" placeholder="Enter your Gemini API key" style="width: 400px">
+    <button onclick="testAPI()">Test API</button>
+    <pre id="result"></pre>
+
+    <script type="module">
+        import { GoogleGenerativeAI } from 'https://esm.run/@google/generative-ai';
+
+        window.testAPI = async function () {
+            const apiKey = document.getElementById('apiKey').value;
+            const resultEl = document.getElementById('result');
+
+            if (!apiKey) {
+                resultEl.textContent = 'Please enter an API key';
+                return;
+            }
+
+            try {
+                resultEl.textContent = 'Testing API key...';
+
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+                const result = await model.generateContent('Say hello');
+                const response = await result.response;
+
+                console.log('Full response:', response);
+                console.log('Candidates:', response.candidates);
+
+                const text = response.text();
+
+                resultEl.textContent = `SUCCESS!\n\nResponse: ${text}\n\nFull response object:\n${JSON.stringify(response, null, 2)}`;
+            } catch (error) {
+                resultEl.textContent = `ERROR:\n\n${error.message}\n\nFull error:\n${JSON.stringify(error, null, 2)}`;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>
