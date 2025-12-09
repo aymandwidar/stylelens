@@ -10,23 +10,48 @@ function Settings() {
     const [geminiStatus, setGeminiStatus] = useState(null) // null, 'saved', 'testing', 'valid', 'invalid'
     const [groqStatus, setGroqStatus] = useState(null)
     const [openrouterStatus, setOpenrouterStatus] = useState(null)
+
+    // Model Selection State
+    const [geminiModel, setGeminiModel] = useState('auto')
+    const [groqModel, setGroqModel] = useState('llama-3.3-70b-versatile')
+    const [customGeminiModel, setCustomGeminiModel] = useState('')
+    const [customGroqModel, setCustomGroqModel] = useState('')
+
     const [errorMessage, setErrorMessage] = useState(null)
     const [demoMode, setDemoMode] = useState(false)
 
     useEffect(() => {
         // Load saved keys and demo mode setting
         const savedGemini = localStorage.getItem('gemini_api_key')
+        const savedGeminiModel = localStorage.getItem('gemini_model') || 'auto'
         const savedGroq = localStorage.getItem('groq_api_key')
+        const savedGroqModel = localStorage.getItem('groq_model') || 'llama-3.3-70b-versatile'
         const savedOpenrouter = localStorage.getItem('openrouter_api_key')
         const savedDemoMode = localStorage.getItem('demo_mode') === 'true'
 
         if (savedGemini) {
             setGeminiKey(savedGemini)
             setGeminiStatus('saved')
+            // Handle custom models if not in the known list
+            const knownGemini = aiService.getModels('gemini').map(m => m.id)
+            if (!knownGemini.includes(savedGeminiModel) && savedGeminiModel !== 'auto') {
+                setGeminiModel('custom')
+                setCustomGeminiModel(savedGeminiModel)
+            } else {
+                setGeminiModel(savedGeminiModel)
+            }
         }
         if (savedGroq) {
             setGroqKey(savedGroq)
             setGroqStatus('saved')
+            // Handle custom models
+            const knownGroq = aiService.getModels('groq').map(m => m.id)
+            if (!knownGroq.includes(savedGroqModel)) {
+                setGroqModel('custom')
+                setCustomGroqModel(savedGroqModel)
+            } else {
+                setGroqModel(savedGroqModel)
+            }
         }
         if (savedOpenrouter) {
             setOpenrouterKey(savedOpenrouter)
@@ -57,7 +82,17 @@ function Settings() {
 
     const handleSave = async (provider, key) => {
         localStorage.setItem(`${provider}_api_key`, key)
-        localStorage.removeItem(`${provider}_model`) // Clear cached model to force re-check
+
+        // Save selected model
+        if (provider === 'gemini') {
+            const modelToSave = geminiModel === 'custom' ? customGeminiModel : geminiModel
+            localStorage.setItem('gemini_model', modelToSave)
+        }
+        if (provider === 'groq') {
+            const modelToSave = groqModel === 'custom' ? customGroqModel : groqModel
+            localStorage.setItem('groq_model', modelToSave)
+        }
+
         setErrorMessage(null)
 
         setProviderStatus(provider, 'saved')
@@ -75,7 +110,11 @@ function Settings() {
         setProviderStatus(provider, 'testing')
 
         try {
-            const success = await aiService.initialize(provider, key)
+            let modelId = null
+            if (provider === 'gemini') modelId = geminiModel === 'custom' ? customGeminiModel : geminiModel
+            if (provider === 'groq') modelId = groqModel === 'custom' ? customGroqModel : groqModel
+
+            const success = await aiService.initialize(provider, key, modelId)
             if (!success) throw new Error('Initialization failed. Please check your key and connection.')
 
             // Test with a simple message
@@ -189,6 +228,31 @@ function Settings() {
                         style={{ marginBottom: 'var(--space-3)' }}
                     />
 
+                    {/* Gemini Model Selector */}
+                    <div style={{ marginBottom: 'var(--space-3)' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#ccc' }}>Model</label>
+                        <select
+                            className="input"
+                            value={geminiModel}
+                            onChange={(e) => setGeminiModel(e.target.value)}
+                            style={{ marginBottom: geminiModel === 'custom' ? 'var(--space-2)' : '0' }}
+                        >
+                            {aiService.getModels('gemini').map(model => (
+                                <option key={model.id} value={model.id}>{model.name}</option>
+                            ))}
+                            <option value="custom">Custom (Enter ID)</option>
+                        </select>
+                        {geminiModel === 'custom' && (
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g. gemini-1.5-pro-exp-0801"
+                                value={customGeminiModel}
+                                onChange={(e) => setCustomGeminiModel(e.target.value)}
+                            />
+                        )}
+                    </div>
+
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                         <button
                             className="btn btn-primary"
@@ -234,6 +298,31 @@ function Settings() {
                         onChange={(e) => setGroqKey(e.target.value)}
                         style={{ marginBottom: 'var(--space-3)' }}
                     />
+
+                    {/* Groq Model Selector */}
+                    <div style={{ marginBottom: 'var(--space-3)' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', color: '#ccc' }}>Model</label>
+                        <select
+                            className="input"
+                            value={groqModel}
+                            onChange={(e) => setGroqModel(e.target.value)}
+                            style={{ marginBottom: groqModel === 'custom' ? 'var(--space-2)' : '0' }}
+                        >
+                            {aiService.getModels('groq').map(model => (
+                                <option key={model.id} value={model.id}>{model.name}</option>
+                            ))}
+                            <option value="custom">Custom (Enter ID)</option>
+                        </select>
+                        {groqModel === 'custom' && (
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g. llama-3.2-3b-preview"
+                                value={customGroqModel}
+                                onChange={(e) => setCustomGroqModel(e.target.value)}
+                            />
+                        )}
+                    </div>
 
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                         <button
@@ -312,7 +401,8 @@ function Settings() {
                             className={`filter-chip ${localStorage.getItem('ai_provider') === 'gemini' ? 'active' : ''}`}
                             onClick={async () => {
                                 localStorage.setItem('ai_provider', 'gemini')
-                                await aiService.initialize('gemini', geminiKey)
+                                const modelId = geminiModel === 'custom' ? customGeminiModel : geminiModel
+                                await aiService.initialize('gemini', geminiKey, modelId)
                                 window.location.reload() // Reload to apply changes
                             }}
                             disabled={!geminiKey || geminiStatus !== 'valid'}
@@ -323,7 +413,8 @@ function Settings() {
                             className={`filter-chip ${localStorage.getItem('ai_provider') === 'groq' ? 'active' : ''}`}
                             onClick={async () => {
                                 localStorage.setItem('ai_provider', 'groq')
-                                await aiService.initialize('groq', groqKey)
+                                const modelId = groqModel === 'custom' ? customGroqModel : groqModel
+                                await aiService.initialize('groq', groqKey, modelId)
                                 window.location.reload() // Reload to apply changes
                             }}
                             disabled={!groqKey || groqStatus !== 'valid'}
@@ -375,8 +466,8 @@ function Settings() {
                         Use this if you see "Gemini Only" errors.
                     </p>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }
 

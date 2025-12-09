@@ -19,16 +19,41 @@ class AIService {
         this.initPromise = this.initializeFromStorage()
     }
 
+    getModels(provider) {
+        if (provider === 'gemini') {
+            return [
+                { id: 'auto', name: 'Auto-Detect (Recommended)' },
+                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (New)' },
+                { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+                { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Exp' },
+                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+                { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B' }
+            ]
+        }
+        if (provider === 'groq') {
+            return [
+                { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Recommended)' },
+                { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B' },
+                { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Fast)' },
+                { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7b' },
+                { id: 'gemma2-9b-it', name: 'Gemma 2 9B' }
+            ]
+        }
+        return []
+    }
+
     async initializeFromStorage() {
         const provider = localStorage.getItem('ai_provider') || 'gemini'
         const apiKey = localStorage.getItem(`${provider}_api_key`)
 
         if (apiKey) {
+            // Pass null for model to use saved preference inside initialize
             await this.initialize(provider, apiKey)
         }
     }
 
-    async initialize(provider, apiKey) {
+    async initialize(provider, apiKey, modelId = null) {
         try {
             this.provider = provider
             this.client = null // Clear previous client to prevent zombie state
@@ -41,10 +66,10 @@ class AIService {
 
             switch (provider) {
                 case 'gemini':
-                    await this.initializeGemini(apiKey)
+                    await this.initializeGemini(apiKey, modelId)
                     break
                 case 'groq':
-                    this.initializeGroq(apiKey)
+                    this.initializeGroq(apiKey, modelId)
                     break
                 case 'openrouter':
                     this.initializeOpenRouter(apiKey)
@@ -61,19 +86,32 @@ class AIService {
         }
     }
 
-    async initializeGemini(apiKey) {
-        // Try to find a working model
-        const validModel = await this.findWorkingGeminiModel(this.genAI)
+    async initializeGemini(apiKey, explicitModel = null) {
+        let validModel = explicitModel
+
+        // If no explicit model override, check storage or auto-detect
+        if (!validModel || validModel === 'auto') {
+            const savedModel = localStorage.getItem('gemini_model')
+            if (savedModel && savedModel !== 'auto') {
+                validModel = savedModel
+            } else {
+                validModel = await this.findWorkingGeminiModel(this.genAI)
+            }
+        }
+
+        console.log(`Using Gemini Model: ${validModel}`)
         this.client = this.genAI.getGenerativeModel({ model: validModel })
         this.visionClient = this.genAI.getGenerativeModel({ model: validModel })
 
-        // Save working model for other services
-        localStorage.setItem('gemini_model', validModel)
+        // Save for persistence (only if not 'auto')
+        if (validModel) localStorage.setItem('gemini_model', validModel)
     }
 
     async findWorkingGeminiModel(genAI) {
         // Initial probe list (Priority: High Quota -> Low Quota)
         const candidates = [
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
             'gemini-1.5-flash',
             'gemini-1.5-flash-8b',
             'gemini-1.5-pro',
@@ -101,12 +139,16 @@ class AIService {
         return 'gemini-1.5-flash'
     }
 
-    initializeGroq(apiKey) {
+    initializeGroq(apiKey, explicitModel = null) {
+        let model = explicitModel || localStorage.getItem('groq_model') || 'llama-3.3-70b-versatile'
+        if (model === 'auto') model = 'llama-3.3-70b-versatile'
+
         this.client = {
             apiKey,
             baseURL: 'https://api.groq.com/openai/v1',
-            model: 'llama-3.3-70b-versatile'
+            model: model
         }
+        localStorage.setItem('groq_model', model)
     }
 
     initializeOpenRouter(apiKey) {
