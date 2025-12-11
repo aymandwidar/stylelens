@@ -251,13 +251,14 @@ class AIService {
 
         if (this.provider === 'openrouter') {
             // OpenRouter requires these headers for rankings
-            headers['HTTP-Referer'] = window.location.href // Use full URL
+            // Use origin instead of full href to avoid potential privacy blocking in Safari
+            headers['HTTP-Referer'] = window.location.origin
             headers['X-Title'] = 'StyleLens'
         }
 
-        // B-01 Fix: Add Timeout to prevent hanging (increased to 30s for mobile)
+        // B-01 Fix: Add Timeout to prevent hanging (stay at 30s)
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
 
         // Add Context to System Prompt for standard LLMs
         let systemPrompt = 'You are a professional fashion stylist providing color and styling advice. Keep your answers concise, under 3 sentences.'
@@ -278,7 +279,9 @@ class AIService {
             const response = await fetch(`${this.client.baseURL}/chat/completions`, {
                 method: 'POST',
                 headers,
-                credentials: 'omit',
+                // Remove 'credentials: omit' - let browser handle default (same-origin)
+                // This is often safer for PWA/Mobile Safari quirks
+                mode: 'cors',
                 signal: controller.signal,
                 body: JSON.stringify({
                     model: this.client.model,
