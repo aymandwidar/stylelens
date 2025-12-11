@@ -155,7 +155,7 @@ class AIService {
         this.client = {
             apiKey,
             baseURL: 'https://openrouter.ai/api/v1',
-            model: 'meta-llama/llama-3.2-3b-instruct:free'
+            model: 'meta-llama/llama-3-8b-instruct:free' // More stable free model
         }
     }
 
@@ -220,7 +220,14 @@ class AIService {
     }
 
     async chatGemini(message, context) {
-        const prompt = `You are a professional fashion stylist. Answer this question: ${message}`
+        let prompt = `You are a professional fashion stylist. Answer this question: ${message}`
+
+        // Context Awareness (B-01 Fix)
+        if (context && context.userProfile) {
+            const { skinTone, bodyType } = context.userProfile
+            if (skinTone) prompt += `\n\nUser Context - Skin Tone: ${skinTone.seasonalPalette} (${skinTone.undertone})`
+            if (bodyType) prompt += `\nUser Context - Body Type: ${bodyType.bodyShape}`
+        }
 
         // Use Smart Retry
         const result = await this.executeWithRetry('chat', this.client, prompt)
@@ -239,36 +246,58 @@ class AIService {
             headers['X-Title'] = 'StyleLens'
         }
 
-        const response = await fetch(`${this.client.baseURL}/chat/completions`, {
-            method: 'POST',
-            headers,
-            credentials: 'omit',
-            body: JSON.stringify({
-                model: this.client.model,
-                messages: [
-                    { role: 'system', content: 'You are a professional fashion stylist providing color and styling advice.' },
-                    { role: 'user', content: message }
-                ],
-                temperature: 0.7,
-                max_tokens: 500
+        // Add Context to System Prompt for standard LLMs
+        let systemPrompt = 'You are a professional fashion stylist providing color and styling advice.'
+        if (context && context.userProfile) {
+            const { skinTone, bodyType } = context.userProfile
+            if (skinTone) systemPrompt += ` The user has a ${skinTone.seasonalPalette} skin palette.`
+            if (bodyType) systemPrompt += ` The user has a ${bodyType.bodyShape} body type.`
+        }
+
+        // B-01 Fix: Add Timeout to prevent hanging
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+        try {
+            const response = await fetch(`${this.client.baseURL}/chat/completions`, {
+                method: 'POST',
+                headers,
+                credentials: 'omit',
+                signal: controller.signal,
+                body: JSON.stringify({
+                    model: this.client.model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500
+                })
             })
-        })
+            clearTimeout(timeoutId)
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            let errorMessage = 'API request failed'
-            try {
-                const error = JSON.parse(errorText)
-                errorMessage = error.error?.message || error.message || errorMessage
-            } catch (e) { errorMessage = errorText || errorMessage }
-            throw new Error(errorMessage)
-        }
+            if (!response.ok) {
+                const errorText = await response.text()
+                let errorMessage = 'API request failed'
+                try {
+                    const error = JSON.parse(errorText)
+                    errorMessage = error.error?.message || error.message || errorMessage
+                } catch (e) { errorMessage = errorText || errorMessage }
+                throw new Error(errorMessage)
+            }
 
-        const data = await response.json()
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new Error('Invalid response from API')
+            const data = await response.json()
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error('Invalid response from API')
+            }
+            return data.choices[0].message.content
+        } catch (error) {
+            clearTimeout(timeoutId)
+            if (error.name === 'AbortError') {
+                throw new Error('Request timed out. Please check your internet connection.')
+            }
+            throw error
         }
-        return data.choices[0].message.content
     }
 
     async analyzeImage(imageDataUrl, prompt) {
@@ -406,37 +435,53 @@ class AIService {
     }
 
     async analyzeGarmentColor(imageDataUrl, targetedColor = null) {
-        let prompt = `Analyze this clothing item and provide color analysis in JSON format:
-{
-  "dominantColor": "#HEXCODE",
-  "colorName": "descriptive color name",
-  "undertone": "warm/cool/neutral",
-  "harmonies": {
-    "complementary": ["#HEX1", "#HEX2", "#HEX3"],
-    "analogous": ["#HEX1", "#HEX2", "#HEX3"],
-    "triadic": ["#HEX1", "#HEX2", "#HEX3"]
-  },
-  "garmentType": "type of clothing",
-  "pattern": "solid/striped/floral/etc",
-  "styleNotes": "brief styling suggestions"
-}`
+        // E-01 Speed Optimization:
+        // We prioritize Math (instant) over Vision AI (slow).
 
-        if (targetedColor) {
-            prompt += `\n\nFocus strictly on the specific color: ${targetedColor}. Ignore background.`
+        let dominantColor = targetedColor || '#000000'
+
+        // 1. Calculate Harmonies Instantly (Client-Side Math)
+        const harmonies = this.calculateHarmonies(dominantColor)
+
+        // 2. Prepare result structure
+        const result = {
+            dominantColor: dominantColor,
+            colorName: "Analyzing...", // Placeholder
+            garmentType: "Clothing Item", // Generic since we skip Vision
+            styleNotes: "Loading style advice...",
+            harmonies: harmonies,
+            pattern: "Solid" // Default
         }
 
-        // Use standard analyzeImage which now has retry logic
-        const result = await this.analyzeImage(imageDataUrl, prompt);
+        // 3. fetch Text Description asynchronously (E-02 Hybrid)
+        // We use 'chat' (Text LLM) instead of 'vision' because it's 10x faster.
+        const prompt = `I am styling a piece of clothing with this exact HEX color: ${dominantColor}.
+        Please provide a response in valid JSON format with these fields:
+        {
+            "colorName": "Creative name for this color",
+            "styleNotes": "One brief, fashion-forward sentence on how to style this color."
+        }
+        Do not include markdown formatting, just the raw JSON.`
 
-        // Fallback: If AI still failed (returned error object) or results bad
-        if (!result.harmonies || result.harmonies.length === 0 || (targetedColor && result.dominantColor !== targetedColor)) {
-            console.log('Using algorithmic fallback for harmonies');
-            const baseColor = targetedColor || result.dominantColor || '#000000';
-            if (targetedColor) result.dominantColor = targetedColor;
-            result.harmonies = this.calculateHarmonies(baseColor);
+        try {
+            // We use 'executeWithRetry' implicitly via chat() but we need raw JSON.
+            // Let's call chat() and parse.
+            const textResponse = await this.chat(prompt)
+
+            // Clean and parse
+            const jsonText = textResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+            const aiData = JSON.parse(jsonText)
+
+            if (aiData.colorName) result.colorName = aiData.colorName
+            if (aiData.styleNotes) result.styleNotes = aiData.styleNotes
+
+        } catch (error) {
+            console.warn('Text description failed, returning math-only result:', error)
+            result.styleNotes = "Matches generated based on color theory."
+            result.colorName = "Custom Color"
         }
 
-        return result;
+        return result
     }
 
     async analyzeSkinTone(imageDataUrl) {

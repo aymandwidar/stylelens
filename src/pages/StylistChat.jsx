@@ -114,8 +114,9 @@ function StylistChat() {
                 // Get user profile from localStorage if exists
                 const userProfile = JSON.parse(localStorage.getItem('user_profile') || '{}')
 
+                // Pass user profile to AI service
                 response = await aiService.chat(userMessage.content, {
-                    userProfile: userProfile.skinTone ? userProfile : null
+                    userProfile: userProfile
                 })
             }
 
