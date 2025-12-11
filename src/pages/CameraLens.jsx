@@ -421,6 +421,18 @@ function CameraLens() {
                     >
                         Save to Wardrobe
                     </button>
+
+                    <button
+                        className="btn btn-secondary"
+                        style={{ width: '100%', marginTop: 'var(--space-3)' }}
+                        onClick={() => {
+                            const query = `${recommendations.colorName} ${recommendations.garmentType} ${recommendations.pattern || ''}`.trim()
+                            const url = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(query)}`
+                            window.open(url, '_blank')
+                        }}
+                    >
+                        🛍️ Shop Similar Items
+                    </button>
                 </div>
             )}
 

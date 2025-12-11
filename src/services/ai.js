@@ -549,6 +549,53 @@ class AIService {
 }`
         return await this.analyzeImage(imageDataUrl, prompt)
     }
+
+    async generateOutfit(wardrobeItems, occasion) {
+        // Validation
+        if (!wardrobeItems || wardrobeItems.length === 0) {
+            throw new Error("Wardrobe is empty. Please add items via the Camera first.")
+        }
+
+        // Prepare inventory list for AI (minified to save tokens)
+        const inventory = wardrobeItems.map(item => ({
+            id: item.id,
+            type: item.type,
+            color: item.color,
+            pattern: item.pattern,
+            style: item.style
+        }))
+
+        const prompt = `I need an outfit for this occasion: "${occasion}".
+        Here is my available wardrobe inventory:
+        ${JSON.stringify(inventory)}
+
+        Please select the best combination (Top + Bottom + Shoes/Accessory) or (Dress + Shoes/Accessory).
+        Return valid JSON only:
+        {
+            "outfitName": "Creative name for this look",
+            "reasoning": "Why this works for the occasion?",
+            "selectedItemIds": [123, 456, 789]
+        }`
+
+        try {
+            // Use existing chat infrastructure with robust parsing
+            const textResponse = await this.chat(prompt)
+
+            const jsonMatch = textResponse.match(/\{[\s\S]*\}/)
+            const jsonStr = jsonMatch ? jsonMatch[0] : textResponse
+            return JSON.parse(jsonStr)
+
+        } catch (error) {
+            console.error("Outfit generation failed:", error)
+            // Fallback: Pick 3 random items if AI fails just to show something
+            const shuffled = [...wardrobeItems].sort(() => 0.5 - Math.random())
+            return {
+                outfitName: "Random Shuffle",
+                reasoning: "AI was busy, so here is a random mix!",
+                selectedItemIds: shuffled.slice(0, 3).map(i => i.id)
+            }
+        }
+    }
 }
 
 export default new AIService()

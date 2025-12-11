@@ -5,6 +5,7 @@ import Wardrobe from './pages/Wardrobe'
 import StylistChat from './pages/StylistChat'
 import Settings from './pages/Settings'
 import Onboarding from './pages/Onboarding'
+import MagicMirror from './pages/MagicMirror'
 import OutfitBuilder from './pages/OutfitBuilder'
 import Analytics from './pages/Analytics'
 
@@ -45,6 +46,14 @@ const HangerIcon = () => (
   </svg>
 )
 
+const MirrorIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20z" />
+    <path d="M15 9l-6 6" />
+    <path d="M9 9l6 6" />
+  </svg>
+)
+
 const ChartIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="20" x2="18" y2="10" />
@@ -79,6 +88,8 @@ function App() {
         return <OutfitBuilder />
       case 'analytics':
         return <Analytics />
+      case 'mirror':
+        return <MagicMirror />
       case 'chat':
         return <StylistChat />
       case 'settings':
@@ -134,6 +145,16 @@ function App() {
         >
           <ChartIcon />
           <span>Stats</span>
+        </button>
+
+        {/* New button for Magic Mirror */}
+        <button
+          className={`nav-item ${activeTab === 'mirror' ? 'active' : ''}`}
+          onClick={() => setActiveTab('mirror')}
+          aria-label="Magic Mirror"
+        >
+          <MirrorIcon />
+          <span>Mirror</span>
         </button>
 
         <button
