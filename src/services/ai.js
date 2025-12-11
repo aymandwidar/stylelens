@@ -221,7 +221,7 @@ class AIService {
     }
 
     async chatGemini(message, context) {
-        let prompt = `You are a professional fashion stylist. Answer this question: ${message}`
+        let prompt = `You are a professional fashion stylist. Answer this question: ${message}. Keep your answer concise, under 3 sentences.`
 
         // Context Awareness (B-01 Fix)
         if (context && context.userProfile) {
@@ -251,6 +251,14 @@ class AIService {
         // B-01 Fix: Add Timeout to prevent hanging
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+        // Add Context to System Prompt for standard LLMs
+        let systemPrompt = 'You are a professional fashion stylist providing color and styling advice. Keep your answers concise, under 3 sentences.'
+        if (context && context.userProfile) {
+            const { skinTone, bodyType } = context.userProfile
+            if (skinTone) systemPrompt += ` The user has a ${skinTone.seasonalPalette} skin palette.`
+            if (bodyType) systemPrompt += ` The user has a ${bodyType.bodyShape} body type.`
+        }
 
         try {
             const response = await fetch(`${this.client.baseURL}/chat/completions`, {
@@ -421,10 +429,16 @@ class AIService {
         }
         const [h, s, l] = rgbToHsl(hexToRgb(hexColor).r, hexToRgb(hexColor).g, hexToRgb(hexColor).b);
         const shift = (deg) => hslToHex((h + deg / 360) % 1, s, l);
+
+        // Monochromatic: Same Hue, different lightness
+        const mono = (lShift) => hslToHex(h, s, Math.max(0, Math.min(1, l + lShift)));
+
         return [
-            { type: "complementary", colors: [shift(180)] },
-            { type: "analogous", colors: [shift(30), shift(-30)] },
-            { type: "triadic", colors: [shift(120), shift(240)] }
+            { type: "Monochromatic (Subtle)", colors: [mono(0.2), mono(-0.2), mono(0.4)] },
+            { type: "Analogous (Harmonious)", colors: [shift(30), shift(60), shift(-30)] },
+            { type: "Complementary (Bold)", colors: [shift(180), mono(0.3)] },
+            { type: "Split Complementary", colors: [shift(150), shift(210)] },
+            { type: "Triadic (Vibrant)", colors: [shift(120), shift(240)] }
         ];
     }
 
