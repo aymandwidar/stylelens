@@ -249,16 +249,8 @@ class AIService {
             'Content-Type': 'application/json'
         }
 
-        if (this.provider === 'openrouter') {
-            // OpenRouter requires these headers for rankings
-            // Use origin instead of full href to avoid potential privacy blocking in Safari
-            headers['HTTP-Referer'] = window.location.origin
-            headers['X-Title'] = 'StyleLens'
-        }
-
-        // B-01 Fix: Add Timeout to prevent hanging (stay at 30s)
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000)
+        // Bare Metal Mode for Safari Mobile Compatibility
+        // Removing AbortController and specialized headers to rule out client-side blocking
 
         // Add Context to System Prompt for standard LLMs
         let systemPrompt = 'You are a professional fashion stylist providing color and styling advice. Keep your answers concise, under 3 sentences.'
@@ -279,10 +271,8 @@ class AIService {
             const response = await fetch(`${this.client.baseURL}/chat/completions`, {
                 method: 'POST',
                 headers,
-                // Remove 'credentials: omit' - let browser handle default (same-origin)
-                // This is often safer for PWA/Mobile Safari quirks
-                mode: 'cors',
-                signal: controller.signal,
+                // explicit credentials omit is safest for 3rd party APIs
+                credentials: 'omit',
                 body: JSON.stringify({
                     model: this.client.model,
                     messages: [
@@ -293,7 +283,6 @@ class AIService {
                     max_tokens: 500
                 })
             })
-            clearTimeout(timeoutId)
 
             if (!response.ok) {
                 const errorText = await response.text()
@@ -301,8 +290,10 @@ class AIService {
                 try {
                     const error = JSON.parse(errorText)
                     errorMessage = error.error?.message || error.message || errorMessage
-                } catch (e) { errorMessage = errorText || errorMessage }
-                throw new Error(errorMessage)
+                } catch (e) {
+                    errorMessage = errorText.substring(0, 100) || response.statusText
+                }
+                throw new Error(`${response.status}: ${errorMessage}`)
             }
 
             const data = await response.json()
