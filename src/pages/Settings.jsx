@@ -110,12 +110,13 @@ function Settings() {
         setProviderStatus(provider, 'testing')
 
         try {
-            let modelId = null
-            if (provider === 'gemini') modelId = geminiModel === 'custom' ? customGeminiModel : geminiModel
-            if (provider === 'groq') modelId = groqModel === 'custom' ? customGroqModel : groqModel
+            // Special initialization for OpenRouter to ensure headers are set
+            if (provider === 'openrouter') {
+                localStorage.setItem('openrouter_api_key', key) // Save temporarily for init
+            }
 
-            const success = await aiService.initialize(provider, key, modelId)
-            if (!success) throw new Error('Initialization failed. Please check your key and connection.')
+            const success = await aiService.initialize(provider, key)
+            if (!success) throw new Error('Initialization failed. Please check your key.')
 
             // Test with a simple message
             const response = await aiService.chat('Say hello')
@@ -128,7 +129,12 @@ function Settings() {
         } catch (error) {
             console.error(`${provider} test error:`, error)
             const msg = error.message || 'Unknown validation error'
-            setProviderStatus(provider, 'invalid', msg)
+            // Show more helpful message for 401
+            if (msg.includes('401') || msg.includes('Unified API')) {
+                setProviderStatus(provider, 'invalid', 'Invalid Key or Credit Limit Reached')
+            } else {
+                setProviderStatus(provider, 'invalid', msg)
+            }
         }
     }
 

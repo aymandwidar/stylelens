@@ -155,7 +155,8 @@ class AIService {
         this.client = {
             apiKey,
             baseURL: 'https://openrouter.ai/api/v1',
-            model: 'meta-llama/llama-3-8b-instruct:free' // More stable free model
+            // Use a list of reliable free models to try
+            model: 'meta-llama/llama-3-8b-instruct:free'
         }
     }
 
@@ -242,16 +243,9 @@ class AIService {
         }
 
         if (this.provider === 'openrouter') {
-            headers['HTTP-Referer'] = window.location.origin
+            // OpenRouter requires these headers for rankings
+            headers['HTTP-Referer'] = window.location.href // Use full URL
             headers['X-Title'] = 'StyleLens'
-        }
-
-        // Add Context to System Prompt for standard LLMs
-        let systemPrompt = 'You are a professional fashion stylist providing color and styling advice.'
-        if (context && context.userProfile) {
-            const { skinTone, bodyType } = context.userProfile
-            if (skinTone) systemPrompt += ` The user has a ${skinTone.seasonalPalette} skin palette.`
-            if (bodyType) systemPrompt += ` The user has a ${bodyType.bodyShape} body type.`
         }
 
         // B-01 Fix: Add Timeout to prevent hanging

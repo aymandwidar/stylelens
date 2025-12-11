@@ -197,7 +197,8 @@ function CameraLens() {
                                 style={{
                                     width: '100%',
                                     height: '100%',
-                                    objectFit: 'cover',
+                                    objectFit: 'contain', // Changed from 'cover' to fix click coordinates on mobile
+                                    backgroundColor: '#000', // Look nice with letterboxing
                                     cursor: 'crosshair'
                                 }}
                                 onClick={handleImageClick}
