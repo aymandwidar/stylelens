@@ -226,8 +226,15 @@ class AIService {
         // Context Awareness (B-01 Fix)
         if (context && context.userProfile) {
             const { skinTone, bodyType } = context.userProfile
-            if (skinTone) prompt += `\n\nUser Context - Skin Tone: ${skinTone.seasonalPalette} (${skinTone.undertone})`
-            if (bodyType) prompt += `\nUser Context - Body Type: ${bodyType.bodyShape}`
+            // Safe check: handle both object (new) and string (legacy) formats
+            if (skinTone) {
+                const toneVal = typeof skinTone === 'object' ? `${skinTone.seasonalPalette} (${skinTone.undertone})` : skinTone
+                prompt += `\n\nUser Context - Skin Tone: ${toneVal}`
+            }
+            if (bodyType) {
+                const bodyVal = typeof bodyType === 'object' ? bodyType.bodyShape : bodyType
+                prompt += `\nUser Context - Body Type: ${bodyVal}`
+            }
         }
 
         // Use Smart Retry
@@ -248,16 +255,23 @@ class AIService {
             headers['X-Title'] = 'StyleLens'
         }
 
-        // B-01 Fix: Add Timeout to prevent hanging
+        // B-01 Fix: Add Timeout to prevent hanging (increased to 30s for mobile)
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
         // Add Context to System Prompt for standard LLMs
         let systemPrompt = 'You are a professional fashion stylist providing color and styling advice. Keep your answers concise, under 3 sentences.'
         if (context && context.userProfile) {
             const { skinTone, bodyType } = context.userProfile
-            if (skinTone) systemPrompt += ` The user has a ${skinTone.seasonalPalette} skin palette.`
-            if (bodyType) systemPrompt += ` The user has a ${bodyType.bodyShape} body type.`
+
+            if (skinTone) {
+                const toneVal = typeof skinTone === 'object' ? skinTone.seasonalPalette : skinTone
+                systemPrompt += ` The user has a ${toneVal} skin palette.`
+            }
+            if (bodyType) {
+                const bodyVal = typeof bodyType === 'object' ? bodyType.bodyShape : bodyType
+                systemPrompt += ` The user has a ${bodyVal} body type.`
+            }
         }
 
         try {
@@ -476,17 +490,21 @@ class AIService {
             // Let's call chat() and parse.
             const textResponse = await this.chat(prompt)
 
-            // Clean and parse
-            const jsonText = textResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-            const aiData = JSON.parse(jsonText)
+            // Clean and parse (Robust Mode)
+            // Extract the first JSON object found in the text, ignoring conversational wrappers
+            const jsonMatch = textResponse.match(/\{[\s\S]*\}/)
+            const jsonStr = jsonMatch ? jsonMatch[0] : textResponse
+
+            const aiData = JSON.parse(jsonStr)
 
             if (aiData.colorName) result.colorName = aiData.colorName
             if (aiData.styleNotes) result.styleNotes = aiData.styleNotes
 
         } catch (error) {
             console.warn('Text description failed, returning math-only result:', error)
+            // Fallback is expected if API fails, but we want to minimize parsing errors
             result.styleNotes = "Matches generated based on color theory."
-            result.colorName = "Custom Color"
+            result.colorName = "Custom Color" // keep hex
         }
 
         return result
